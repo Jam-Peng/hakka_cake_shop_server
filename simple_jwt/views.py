@@ -33,7 +33,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 # 取得全部員工資料
 class StaffList(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(is_delete=False).filter(is_office_staff=True)
+    queryset = Staff.objects.filter(is_delete=False).filter(is_office_staff=True).filter(backend=False)
     serializer_class = StaffSerializer
 
     # 查詢
@@ -61,7 +61,7 @@ class StaffList(viewsets.ModelViewSet):
 
 # 註冊、更新員工帳號
 class StaffViewSet(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(is_staff=True)
+    queryset = Staff.objects.filter(is_office_staff=True).filter(backend=False)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
     # permission_classes = [IsAuthenticated]     # 權限配置 - 必須登入才可以訪問
@@ -118,6 +118,7 @@ class DeleteStaff(APIView):
     def patch(self, request, pk, format=None):
             staff = self.get_staff(pk)
             staff.is_delete = True
+            staff.is_office_staff = False
 
             staff.save()
             return Response({"message" : "已刪除員工"}, status=status.HTTP_200_OK)
@@ -159,30 +160,43 @@ class ClockOutViewSet(viewsets.ModelViewSet):
         if not clockIn:
             return Response({"message": "尚未打上班卡，請先打上班卡"})
 
-        # 取得舊的下班卡紀錄
-        clockOutRecord = ClockOutRecord.objects.filter(staff=staff).last()
+        # 取得最後一次下班卡紀錄
+        last_clockOutRecord = ClockOutRecord.objects.filter(staff=staff).last()
+
+        # 轉換成字串
+        # new_time = last_clockOutRecord.clock_out_time + timedelta(hours=8)
+        # last_clockOutRecord_strTime = new_time.strftime('%Y-%m-%d')
+        # 與目前時間比較做比較用 (轉回時間格式取日期)
+        # last_clockOutRecord_datetime = datetime.strptime(last_clockOutRecord_strTime , '%Y-%m-%d')
+
 
         # 目前時間(字串格式)
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        # 設定午夜 00:00(字串格式)
-        current_year = datetime.now().year
-        midnight = time(0, 0).strftime(f'{current_year}-%m-%d %H:%M:%S')
-
-        # 轉回相同時間格式做比較
+        # 最後要儲存的格式
         current_datetime = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
-        midnight_datetime = datetime.strptime(midnight, '%Y-%m-%d %H:%M:%S')
 
-        if not clockOutRecord or current_datetime >= midnight_datetime:
-            if not clockOutRecord:
-                # 建立下班卡時間
-                clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
+        # 與最後一次打卡時間做比較用 (將字串格式目前時間，轉回時間格式)
+        current_strTime = datetime.now().strftime('%Y-%m-%d')
+        current_date_time = datetime.strptime(current_strTime, '%Y-%m-%d')
+        
+        if last_clockOutRecord:
+            new_time = last_clockOutRecord.clock_out_time + timedelta(hours=8)
+            last_clockOutRecord_strTime = new_time.strftime('%Y-%m-%d')
+            last_clockOutRecord_datetime = datetime.strptime(last_clockOutRecord_strTime , '%Y-%m-%d')
+
+            if current_date_time > last_clockOutRecord_datetime:
+                # 建立新下班打卡紀錄
+                new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
+                new_clockOutRecord.save()
+                return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
             else:
-                # (覆盖)下班卡時間
-                clockOutRecord.clock_out_time = current_datetime
-            clockOutRecord.save()
-
-        return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
-
-
+                # 覆蓋下班打卡記錄
+                last_clockOutRecord.clock_out_time = current_datetime
+                last_clockOutRecord.save()
+                return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
+        else:
+            # 如果是新的下班卡就沒有前一次最後一次紀錄
+            new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
+            new_clockOutRecord.save()
+            return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
 

@@ -56,7 +56,7 @@ class SearchOrderViewSet(viewsets.ModelViewSet):
 class DeleteOrderViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-    # 方法一：前端只能在接收錯誤時解析回傳值，不能提前先解析，不然會出錯
+    # 寫法一：前端只能在接收錯誤時解析回傳值，不能提前先解析，不然會出錯
     # def destroy(self, request, pk=None):
     #     try:
     #         order = Order.objects.get(pk=pk)
@@ -65,7 +65,7 @@ class DeleteOrderViewSet(viewsets.ViewSet):
     #     except Order.DoesNotExist:
     #         return Response({"message": "找不到這筆訂單"}, status=status.HTTP_404_NOT_FOUND)
 
-    # 方法二：前端只能在接收錯誤時解析回傳值，不能提前先解析，不然會出錯
+    # 寫法二
     def destroy(self, request, pk=None):
         try:
             order = Order.objects.get(pk=pk)
@@ -74,9 +74,6 @@ class DeleteOrderViewSet(viewsets.ViewSet):
         
         order.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-        
-
-
 
 
 # ======================  前台 API  ====================== #
