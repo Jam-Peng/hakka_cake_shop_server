@@ -14,14 +14,16 @@ class ClockOutSerializer(serializers.ModelSerializer):
         fields = ('id', 'clock_out_time')
 
 
-class StaffSerializer(serializers.ModelSerializer):
+# class StaffSerializer(serializers.ModelSerializer):
+class StaffSerializer(serializers.HyperlinkedModelSerializer):
+    image = serializers.ImageField(max_length=None, allow_empty_file=False, allow_null=False, use_url=True, required=False)
     clock_in_records = ClockInSerializer(many=True, read_only=True)
     clock_out_records = ClockOutSerializer(many=True, read_only=True)
     
     class Meta:
         model = Staff
         fields = ('id', 'backend', 'name', 'username', 'email', 'password', 'admin', 'is_delete', 'is_office_staff',
-                'is_vip_client', 'clock_in_records', 'clock_out_records')
+                'is_vip_client', 'clock_in_records', 'clock_out_records', 'image')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

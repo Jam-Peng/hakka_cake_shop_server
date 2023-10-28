@@ -158,10 +158,10 @@ class ClockOutViewSet(viewsets.ModelViewSet):
 
         clockIn = ClockInRecord.objects.filter(staff=staff).last()
         if not clockIn:
-            return Response({"message": "尚未打上班卡，請先打上班卡"})
+            return Response({"message": "新卡，請先打上班卡"})
 
         # 取得最後一次下班卡紀錄
-        last_clockOutRecord = ClockOutRecord.objects.filter(staff=staff).last()
+        last_clockOutRecord = ClockOutRecord.objects.filter(staff=staff).first()
 
         # 轉換成字串
         # new_time = last_clockOutRecord.clock_out_time + timedelta(hours=8)
@@ -184,7 +184,7 @@ class ClockOutViewSet(viewsets.ModelViewSet):
             last_clockOutRecord_strTime = new_time.strftime('%Y-%m-%d')
             last_clockOutRecord_datetime = datetime.strptime(last_clockOutRecord_strTime , '%Y-%m-%d')
 
-            if current_date_time > last_clockOutRecord_datetime:
+            if current_date_time != last_clockOutRecord_datetime:
                 # 建立新下班打卡紀錄
                 new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
                 new_clockOutRecord.save()

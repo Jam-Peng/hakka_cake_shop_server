@@ -11,6 +11,7 @@ class Staff(AbstractUser):
     is_delete = models.BooleanField(default=False)
     is_office_staff = models.BooleanField(default=False)
     is_vip_client = models.BooleanField(default=False)
+    image = models.ImageField(upload_to='avatar/', blank=True, null=True)
     
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []

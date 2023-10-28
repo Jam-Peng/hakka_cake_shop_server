@@ -7,7 +7,7 @@ class Product(models.Model):
     price = models.CharField(max_length=10)
     description = models.TextField(null=True, blank=True)
     complete = models.BooleanField(default=False)
-    image = models.ImageField(upload_to='images/', blank=True, null=True )
+    image = models.ImageField(upload_to='images/', blank=True, null=True)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
