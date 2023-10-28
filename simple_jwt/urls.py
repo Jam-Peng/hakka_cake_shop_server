@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import (
 router = DefaultRouter()
 router.register('staffs', views.StaffList)
 router.register('staff_set', views.StaffViewSet)
+router.register('client_set', views.ClientViewSet)
 
 urlpatterns = [
     path('token/', views.MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -20,4 +21,5 @@ urlpatterns = [
     path('clock-out/<int:pk>/', views.ClockOutViewSet.as_view({'put': 'update'}), name='clock_out'),  # 下班打卡
     path('staffs/search/', views.StaffList.as_view({'get': 'search'}), name='staff_search'),          # 查詢員工
     path('staff_delete/<int:pk>/', views.DeleteStaff.as_view(), name='delete_staff'),                 # 刪除員工(將is_delete設為True)
+
 ]

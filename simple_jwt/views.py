@@ -24,7 +24,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['name'] = user.name
         token['is_office_staff'] = user.is_office_staff
         token['is_vip_client'] = user.is_vip_client
-
+        
         return token
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -200,3 +200,29 @@ class ClockOutViewSet(viewsets.ModelViewSet):
             new_clockOutRecord.save()
             return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
 
+
+# ======================  前台 API  ====================== #
+# 註冊會員帳號
+class ClientViewSet(viewsets.ModelViewSet):
+    queryset = Staff.objects.all()
+    serializer_class = StaffSerializer
+    permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
+    
+    def create(self, request):
+        username = request.data['username']
+        password1 = request.data['password1']
+        name = request.data['name']
+        if name == "":
+            name = None
+        email = request.data['email']
+
+        # 根據信箱檢查是否有相同的帳號
+        if get_user_model().objects.filter(email=email).exists():
+            return Response({"message": "帳號已註冊"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 建立帳號
+        user = get_user_model().objects.create_user(
+                username=username, password=password1, name=name, email=email)
+
+        return Response({"message": "註冊成功"}, status=status.HTTP_201_CREATED)
+    

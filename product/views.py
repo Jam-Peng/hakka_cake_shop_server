@@ -45,9 +45,10 @@ def getRoutes(request):
         },
 
         '===================  前台使用  ====================',
-        'GET | api/v1/front_products/',              # 取得所有產品
-        'POST | api/v1/front_order/',                # 建立商品訂單
-        'GET | api/v1//user_orders/:id/',            # 取得一個客戶所有訂單
+        'POST | api/v1/client_set/',                     # 會員註冊帳號
+        'GET | api/v1/front_products/',                  # 取得所有產品
+        'POST | api/v1/front_order/',                    # 建立商品訂單
+        'GET | api/v1/user_orders/:id/',                 # 取得一個客戶所有訂單
         
     ]
     return Response(routes)
