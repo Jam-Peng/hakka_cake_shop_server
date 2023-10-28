@@ -16,29 +16,38 @@ from django.core.files.uploadedfile import InMemoryUploadedFile   # 檢查是否
 @api_view(['GET'])
 def getRoutes(request):
     routes = [
-        '==========  後台使用  ==========',
-        'GET | api/v1/',
-        'POST | api/v1/token/',
-        'POST | api/v1/token/refresh/',
+        '====================  後台使用  ====================',
+        {
+            'GET | api/v1/',
+            'POST | api/v1/token/',
+            'POST | api/v1/token/refresh/',
+        },
+        {
+            'GET | api/v1/staffs/',                      # 取得全部員工
+            'POST | api/v1/staff_set/',                  # 員工註冊
+            'PUT | api/v1/staff_set/:id/',               # 更新帳號
+            'POST | api/v1/clock-in/:id/',               # 上班打卡
+            'PUT | api/v1/clock-out/:id/',               # 下班打卡
+            'GET | api/v1/staffs/search/?search=query',  # 搜尋員工
+            'PATCH | api/v1/staff_delete/:id/',          # 刪除員工 
+        },
+        {
+            'GET | api/v1/products/',                    # 取得全部商品
+            'POST | api/v1/product_set/',                # 建立商品
+            'PUT | api/v1/product_set/:id/',             # 更新商品
+            'DELETE | api/v1/product_delete/:id/',       # 刪除商品
+            'PATCH | api/v1/product_show/:id/',          # 更新商品是否顯示於前台
+        },
+        {
+            'GET | api/v1/all_orders',                   # 取得所有訂單
+            'DELETE | api/v1/delete_order/:id/',         # 刪除一筆訂單
+            'GET | api/v1/order/search/?search=query/',  # 訂單查詢
+        },
 
-        'GET | api/v1/staffs/',                      # 取得全部員工
-        'POST | api/v1/staff_set/',                  # 員工註冊
-        'PUT | api/v1/staff_set/:id/',               # 更新帳號
-        'POST | api/v1/clock-in/:id/',               # 上班打卡
-        'PUT | api/v1/clock-out/:id/',               # 下班打卡
-        'GET | api/v1/staffs/search/?search=query',  # 搜尋員工
-        'PATCH | api/v1/staff_delete/:id/',          # 刪除員工
-
-        'GET | api/v1/products/',                    # 取得全部商品
-        'POST | api/v1/product_set/',                # 建立商品
-        'PUT | api/v1/product_set/:id/',             # 更新商品
-        'DELETE | api/v1/product_delete/:id/',       # 刪除商品
-        'PATCH | api/v1/product_show/:id/',          # 更新商品是否顯示於前台
-        
-        '==========  前台使用  ==========',
+        '===================  前台使用  ====================',
         'GET | api/v1/front_products/',              # 取得所有產品
         'POST | api/v1/front_order/',                # 建立商品訂單
-        'GET | api/v1//user_orders/:id/',            # 取得客戶所有訂單
+        'GET | api/v1//user_orders/:id/',            # 取得一個客戶所有訂單
         
     ]
     return Response(routes)
