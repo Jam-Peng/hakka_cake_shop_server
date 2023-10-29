@@ -22,4 +22,6 @@ urlpatterns = [
     path('staffs/search/', views.StaffList.as_view({'get': 'search'}), name='staff_search'),          # 查詢員工
     path('staff_delete/<int:pk>/', views.DeleteStaff.as_view(), name='delete_staff'),                 # 刪除員工(將is_delete設為True)
 
+    path('client_profile/<int:pk>/', views.ClientViewSet.as_view({'get': 'client_profile'}), name='client_profile'),   # 取會員資料
+    path('client_update/<int:pk>/', views.ClientUpdateViewSet.as_view({'put': 'update'}), name='client_update'),       # 更新會員資料
 ]

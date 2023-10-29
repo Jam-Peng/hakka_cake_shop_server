@@ -46,10 +46,10 @@ def getRoutes(request):
 
         '===================  前台使用  ====================',
         'POST | api/v1/client_set/',                     # 會員註冊帳號
-        'GET | api/v1/front_products/',                  # 取得所有產品
+        'GET | api/v1/front_products/',                  # 取得所有商品
         'POST | api/v1/front_order/',                    # 建立商品訂單
         'GET | api/v1/user_orders/:id/',                 # 取得一個客戶所有訂單
-        
+        'PUT | api/v1/client_update/:id/',               # 更新會員資料
     ]
     return Response(routes)
 

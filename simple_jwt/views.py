@@ -7,7 +7,9 @@ from .serializers import StaffSerializer, ClockInSerializer, ClockOutSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.decorators import action
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.core.files.uploadedfile import InMemoryUploadedFile 
 
 # Simple JWT 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -24,7 +26,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['name'] = user.name
         token['is_office_staff'] = user.is_office_staff
         token['is_vip_client'] = user.is_vip_client
-        
+
         return token
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -202,12 +204,13 @@ class ClockOutViewSet(viewsets.ModelViewSet):
 
 
 # ======================  前台 API  ====================== #
-# 註冊會員帳號
+# 註冊和取得會員帳號
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.all()
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
     
+
     def create(self, request):
         username = request.data['username']
         password1 = request.data['password1']
@@ -225,4 +228,52 @@ class ClientViewSet(viewsets.ModelViewSet):
                 username=username, password=password1, name=name, email=email)
 
         return Response({"message": "註冊成功"}, status=status.HTTP_201_CREATED)
-    
+
+    # 取得一個會員資料
+    @action(detail=True, methods=['GET'])
+    def client_profile(self, request, pk=None):
+        try:
+            client = Staff.objects.get(id=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "無此會員"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 序列化
+        serializer = StaffSerializer(client)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# 更新會員
+class ClientUpdateViewSet(viewsets.ModelViewSet):
+    queryset = Staff.objects.all()
+    serializer_class = StaffSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def update(self, request, pk=None):
+        try:
+            client = Staff.objects.get(pk=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "無法更新"}, status=status.HTTP_404_NOT_FOUND)
+
+        password = request.data['newPassword']
+        if password:
+            client.set_password(password)
+
+        name =  request.data['updatName']
+        if name != "":
+            client.name = name
+        else:
+            client.name =  client.name
+
+        if 'image' in request.data:
+            new_image = request.data['image']
+            if isinstance(new_image, InMemoryUploadedFile):
+                if new_image.size > 0:
+                    if client.image:
+                        client.image.delete() 
+                    client.image = new_image
+            else:
+                client.image = client.image
+
+        client.save()
+        return Response({"message": "更新成功"}, status=status.HTTP_200_OK)
+

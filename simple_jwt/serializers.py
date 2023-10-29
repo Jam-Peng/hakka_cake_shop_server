@@ -16,9 +16,9 @@ class ClockOutSerializer(serializers.ModelSerializer):
 
 # class StaffSerializer(serializers.ModelSerializer):
 class StaffSerializer(serializers.HyperlinkedModelSerializer):
-    image = serializers.ImageField(max_length=None, allow_empty_file=False, allow_null=False, use_url=True, required=False)
     clock_in_records = ClockInSerializer(many=True, read_only=True)
     clock_out_records = ClockOutSerializer(many=True, read_only=True)
+    image = serializers.ImageField(max_length=None, allow_empty_file=False, allow_null=False, use_url=True, required=False)
     
     class Meta:
         model = Staff
