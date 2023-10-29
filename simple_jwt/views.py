@@ -123,7 +123,7 @@ class DeleteStaff(APIView):
             staff.is_office_staff = False
 
             staff.save()
-            return Response({"message" : "已刪除員工"}, status=status.HTTP_200_OK)
+            return Response({"message" : "已將員工加入帶刪除名單"}, status=status.HTTP_200_OK)
 
 
 # 員工上班打卡(只會紀錄一次)
@@ -201,6 +201,59 @@ class ClockOutViewSet(viewsets.ModelViewSet):
             new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
             new_clockOutRecord.save()
             return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
+
+
+# 處理會員管理
+class backendClientViewSet(viewsets.ModelViewSet):
+    # 取得全部會員資料
+    queryset = Staff.objects.filter(backend=False).filter(is_delete_client=False)
+    serializer_class = StaffSerializer
+    permission_classes = [AllowAny]                  # 權限配置 - 全線允許訪問
+
+
+# 將會員加入黑名單(將資料庫的 is_delete_client設為 True)
+class DeleteClientToBlack(APIView):
+    def get_client(self, pk):
+        try:
+            return Staff.objects.get(id=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
+        
+    def patch(self, request, pk, format=None):
+            client = self.get_client(pk)
+            client.is_delete_client = True
+
+            client.save()
+            return Response({"message" : "已將會員加入黑名單"}, status=status.HTTP_200_OK)
+
+
+# 取得查詢的會員
+class SearchClientViewSet(viewsets.ModelViewSet):
+    queryset = Staff.objects.all()
+    serializer_class = StaffSerializer
+
+    # 查詢
+    @action(detail=False, methods=['GET'])
+    def search(self, request):
+        query_params = self.request.query_params
+
+        search = query_params.get('search').strip('/')
+
+        queryset = Staff.objects.all()
+
+        username =  queryset.filter(username__icontains=search)
+        name = queryset.filter(name__icontains=search)
+        email = queryset.filter(email__icontains=search)
+
+        if username:
+            queryset = username
+        elif name:
+            queryset = name
+        elif email:
+            queryset = email
+        
+        serializer = StaffSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ======================  前台 API  ====================== #

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Staff, ClockInRecord, ClockOutRecord
-
+from order.serializers import OrderSerializer
 
 class ClockInSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,11 +19,12 @@ class StaffSerializer(serializers.HyperlinkedModelSerializer):
     clock_in_records = ClockInSerializer(many=True, read_only=True)
     clock_out_records = ClockOutSerializer(many=True, read_only=True)
     image = serializers.ImageField(max_length=None, allow_empty_file=False, allow_null=False, use_url=True, required=False)
-    
+    orders = OrderSerializer(many=True, read_only=True)       # 引用訂單序列化，加到每個staff裡
+
     class Meta:
         model = Staff
         fields = ('id', 'backend', 'name', 'username', 'email', 'password', 'admin', 'is_delete', 'is_office_staff',
-                'is_vip_client', 'clock_in_records', 'clock_out_records', 'image')
+                'is_vip_client', 'clock_in_records', 'clock_out_records', 'image', 'orders', 'is_delete_client')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

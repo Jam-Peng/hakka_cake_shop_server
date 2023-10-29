@@ -16,12 +16,13 @@ from django.core.files.uploadedfile import InMemoryUploadedFile   # 檢查是否
 @api_view(['GET'])
 def getRoutes(request):
     routes = [
-        '====================  後台使用  ====================',
+        '===================  Token驗證  ===================',
         {
             'GET | api/v1/',
             'POST | api/v1/token/',
             'POST | api/v1/token/refresh/',
         },
+        '====================  後台使用  ====================',
         {
             'GET | api/v1/staffs/',                      # 取得全部員工
             'POST | api/v1/staff_set/',                  # 員工註冊
@@ -29,7 +30,12 @@ def getRoutes(request):
             'POST | api/v1/clock-in/:id/',               # 上班打卡
             'PUT | api/v1/clock-out/:id/',               # 下班打卡
             'GET | api/v1/staffs/search/?search=query',  # 搜尋員工
-            'PATCH | api/v1/staff_delete/:id/',          # 刪除員工 
+            'PATCH | api/v1/staff_delete/:id/',          # 刪除員工 (將is_delete設為True)
+        },
+        {
+            'GET | api/v1/back_client_set/',             # 取得所有會員 (除了系統管理員)
+            'PATCH | api/v1/client_delete/:id/',         # 刪除會員 (將is_delete_client設為True)
+            'GET | api/v1/client/search/?search=query',  # 搜尋員工
         },
         {
             'GET | api/v1/products/',                    # 取得全部商品

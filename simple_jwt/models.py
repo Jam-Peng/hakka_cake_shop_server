@@ -8,11 +8,12 @@ class Staff(AbstractUser):
     name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(unique=True, null=True)
     admin = models.BooleanField(default=False)
-    is_delete = models.BooleanField(default=False)
     is_office_staff = models.BooleanField(default=False)
+    is_delete = models.BooleanField(default=False)
     is_vip_client = models.BooleanField(default=False)
+    is_delete_client = models.BooleanField(default=False)
     image = models.ImageField(upload_to='avatar/', blank=True, null=True)
-    
+
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
 
