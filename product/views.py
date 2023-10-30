@@ -33,9 +33,11 @@ def getRoutes(request):
             'PATCH | api/v1/staff_delete/:id/',          # 刪除員工 (將is_delete設為True)
         },
         {
-            'GET | api/v1/back_client_set/',             # 取得所有會員 (除了系統管理員)
-            'PATCH | api/v1/client_delete/:id/',         # 刪除會員 (將is_delete_client設為True)
-            'GET | api/v1/client/search/?search=query',  # 搜尋員工
+            'GET | api/v1/back_client_set/',                # 取得所有會員 (除了系統管理員)
+            'PATCH | api/v1/client_delete/:id/',            # 將會員加入黑名單 (將is_delete_client設為True)
+            'PUT | api/v1/client_black_set/:id/',           # 取回員工 (將is_delete_client設為False)
+            'DELETE | api/v1/client_delete_from_db/:id/',  # 刪除會員 (從資料庫中刪除)
+            'GET | api/v1/client/search/?search=query',     # 搜尋員工
         },
         {
             'GET | api/v1/products/',                    # 取得全部商品

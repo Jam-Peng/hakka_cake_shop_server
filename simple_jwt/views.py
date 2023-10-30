@@ -123,7 +123,7 @@ class DeleteStaff(APIView):
             staff.is_office_staff = False
 
             staff.save()
-            return Response({"message" : "已將員工加入帶刪除名單"}, status=status.HTTP_200_OK)
+            return Response({"message" : "已加入待刪除名單"}, status=status.HTTP_200_OK)
 
 
 # 員工上班打卡(只會紀錄一次)
@@ -224,7 +224,7 @@ class DeleteClientToBlack(APIView):
             client.is_delete_client = True
 
             client.save()
-            return Response({"message" : "已將會員加入黑名單"}, status=status.HTTP_200_OK)
+            return Response({"message" : "已加入黑名單"}, status=status.HTTP_200_OK)
 
 
 # 取得查詢的會員
@@ -239,7 +239,7 @@ class SearchClientViewSet(viewsets.ModelViewSet):
 
         search = query_params.get('search').strip('/')
 
-        queryset = Staff.objects.all()
+        queryset = Staff.objects.filter(backend=False)
 
         username =  queryset.filter(username__icontains=search)
         name = queryset.filter(name__icontains=search)
@@ -254,6 +254,37 @@ class SearchClientViewSet(viewsets.ModelViewSet):
         
         serializer = StaffSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# 處理加入黑名單的會員
+class ClientBlackViewSet(viewsets.ModelViewSet):
+    # 取得全部會員 is_delete_client= True 資料
+    queryset = Staff.objects.filter(backend=False).filter(is_delete_client=True)
+    serializer_class = StaffSerializer
+    permission_classes = [AllowAny]                  # 權限配置 - 全線允許訪問
+
+    def update(self, request, pk=None):
+        try:
+            client = Staff.objects.get(pk=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
+        
+        client.is_delete_client = False
+        
+        client.save()
+        return Response({"message": "已將會員取回"}, status=status.HTTP_200_OK)
+    
+    def destroy(self, request, pk=None):
+        try:
+            client = Staff.objects.get(pk=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if client.image:  
+            client.image.delete() 
+
+        client.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ======================  前台 API  ====================== #

@@ -15,6 +15,4 @@ urlpatterns = [
     path('product_delete/<int:pk>/', views.ProductViewSet.as_view({'delete': 'destroy'}), name='product-delete'),
     path('product_show/<int:pk>/', views.ProductShow.as_view()),
 
-    # ======================  前台 API  ====================== #
-    
 ]
