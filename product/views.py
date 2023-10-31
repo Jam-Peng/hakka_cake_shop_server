@@ -24,40 +24,45 @@ def getRoutes(request):
         },
         '====================  後台使用  ====================',
         {
-            'GET | api/v1/staffs/',                      # 取得全部員工
-            'POST | api/v1/staff_set/',                  # 員工註冊
-            'PUT | api/v1/staff_set/:id/',               # 更新帳號
-            'POST | api/v1/clock-in/:id/',               # 上班打卡
-            'PUT | api/v1/clock-out/:id/',               # 下班打卡
-            'GET | api/v1/staffs/search/?search=query',  # 搜尋員工
-            'PATCH | api/v1/staff_delete/:id/',          # 刪除員工 (將is_delete設為True)
+            'GET | api/v1/staffs/',                         # 取得全部員工
+            'POST | api/v1/staff_set/',                     # 員工註冊
+            'PUT | api/v1/staff_set/:id/',                  # 更新帳號
+            'POST | api/v1/clock-in/:id/',                  # 上班打卡
+            'PUT | api/v1/clock-out/:id/',                  # 下班打卡
+            'GET | api/v1/staffs/search/?search=query',     # 搜尋員工
+            
+            'PATCH | api/v1/staff_delete/:id/',             # 將員工加入待刪除名單 (將 is_delete設為 True)
+            'GET | api/v1/staff_wait_set/',                 # 取得加入待刪除的所有員工
+            'PUT | api/v1/staff_wait_set/:id/',             # 取回員工 (將 is_delete_client設為 False)
+            'DELETE | api/v1/staff_delete_from_db/:id/',    # 刪除員工 (從資料庫中刪除)
         },
         {
             'GET | api/v1/back_client_set/',                # 取得所有會員 (除了系統管理員)
-            'PATCH | api/v1/client_delete/:id/',            # 將會員加入黑名單 (將is_delete_client設為True)
-            'PUT | api/v1/client_black_set/:id/',           # 取回員工 (將is_delete_client設為False)
-            'DELETE | api/v1/client_delete_from_db/:id/',  # 刪除會員 (從資料庫中刪除)
+            'PATCH | api/v1/client_delete/:id/',            # 將會員加入黑名單 (將 is_delete_client設為 True)
+            'GET | api/v1/client_black_set',                # 取得加入黑名單的所有會員
+            'PUT | api/v1/client_black_set/:id/',           # 取回會員 (將 is_delete_client設為 False)
+            'DELETE | api/v1/client_delete_from_db/:id/',   # 刪除會員 (從資料庫中刪除)
             'GET | api/v1/client/search/?search=query',     # 搜尋員工
         },
         {
-            'GET | api/v1/products/',                    # 取得全部商品
-            'POST | api/v1/product_set/',                # 建立商品
-            'PUT | api/v1/product_set/:id/',             # 更新商品
-            'DELETE | api/v1/product_delete/:id/',       # 刪除商品
-            'PATCH | api/v1/product_show/:id/',          # 更新商品是否顯示於前台
+            'GET | api/v1/products/',                       # 取得全部商品
+            'POST | api/v1/product_set/',                   # 建立商品
+            'PUT | api/v1/product_set/:id/',                # 更新商品
+            'DELETE | api/v1/product_delete/:id/',          # 刪除商品
+            'PATCH | api/v1/product_show/:id/',             # 更新商品是否顯示於前台
         },
         {
-            'GET | api/v1/all_orders',                   # 取得所有訂單
-            'DELETE | api/v1/delete_order/:id/',         # 刪除一筆訂單
-            'GET | api/v1/order/search/?search=query/',  # 訂單查詢
+            'GET | api/v1/all_orders',                      # 取得所有訂單
+            'DELETE | api/v1/delete_order/:id/',            # 刪除一筆訂單
+            'GET | api/v1/order/search/?search=query/',     # 訂單查詢
         },
 
         '===================  前台使用  ====================',
-        'POST | api/v1/client_set/',                     # 會員註冊帳號
-        'GET | api/v1/front_products/',                  # 取得所有商品
-        'POST | api/v1/front_order/',                    # 建立商品訂單
-        'GET | api/v1/user_orders/:id/',                 # 取得一個客戶所有訂單
-        'PUT | api/v1/client_update/:id/',               # 更新會員資料
+        'POST | api/v1/client_set/',                        # 會員註冊帳號
+        'GET | api/v1/front_products/',                     # 取得所有商品
+        'POST | api/v1/front_order/',                       # 建立商品訂單
+        'GET | api/v1/user_orders/:id/',                    # 取得一個客戶所有訂單
+        'PUT | api/v1/client_update/:id/',                  # 更新會員資料
     ]
     return Response(routes)
 
@@ -153,5 +158,4 @@ class ProductShow(APIView):
 class FrontendProductList(viewsets.ModelViewSet):
     queryset = Product.objects.filter(complete=True)
     serializer_class = ProductSerializer
-
 

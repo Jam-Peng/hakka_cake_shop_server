@@ -35,7 +35,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 # 取得全部員工資料
 class StaffList(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(is_delete=False).filter(is_office_staff=True).filter(backend=False)
+    queryset = Staff.objects.filter(backend=False).filter(is_delete=False).filter(is_office_staff=True)
     serializer_class = StaffSerializer
 
     # 查詢
@@ -44,7 +44,7 @@ class StaffList(viewsets.ModelViewSet):
         query_params = self.request.query_params
 
         search = query_params.get('search')
-        queryset = Staff.objects.filter(is_delete=False).filter(backend=False)
+        queryset = Staff.objects.filter(backend=False).filter(is_delete=False).filter(is_office_staff=True)
 
         email = queryset.filter(email__icontains=search)
         username = queryset.filter(username__icontains=search)
@@ -63,7 +63,7 @@ class StaffList(viewsets.ModelViewSet):
 
 # 註冊、更新員工帳號
 class StaffViewSet(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(is_office_staff=True).filter(backend=False)
+    queryset = Staff.objects.filter(backend=False).filter(is_office_staff=True)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
     # permission_classes = [IsAuthenticated]     # 權限配置 - 必須登入才可以訪問
@@ -124,6 +124,38 @@ class DeleteStaff(APIView):
 
             staff.save()
             return Response({"message" : "已加入待刪除名單"}, status=status.HTTP_200_OK)
+
+
+# 處理加入待刪除的員工
+class StaffWaitSetViewSet(viewsets.ModelViewSet):
+    # 取得全部待刪除員工
+    queryset = Staff.objects.filter(backend=False).filter(is_office_staff=False).filter(is_delete=True)
+    serializer_class = StaffSerializer
+    permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
+    
+    def update(self, request, pk=None):
+        try:
+            staff = Staff.objects.get(pk=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "查無此員工"}, status=status.HTTP_404_NOT_FOUND)
+        
+        staff.is_delete = False
+        staff.is_office_staff = True
+        
+        staff.save()
+        return Response({"message": "已將員工取回"}, status=status.HTTP_200_OK)
+    
+    def destroy(self, request, pk=None):
+        try:
+            staff = Staff.objects.get(pk=pk)
+        except Staff.DoesNotExist:
+            return Response({"message": "查無此員工"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if staff.image:  
+            staff.image.delete() 
+
+        staff.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # 員工上班打卡(只會紀錄一次)
