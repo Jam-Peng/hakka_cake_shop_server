@@ -56,6 +56,10 @@ def getRoutes(request):
             'DELETE | api/v1/delete_order/:id/',            # 刪除一筆訂單
             'GET | api/v1/order/search/?search=query/',     # 訂單查詢
         },
+        {
+            'GET | /api/v1/all_daily_order_stats/',         # 依照所有日期統計訂單 (取得日期、分類、商品、總數量、總金額)
+            'GET | /api/v1/daily_order_stats/',             # 依照當日統計訂單 (取得日期、分類、商品、總數量、總金額)
+        },
 
         '===================  前台使用  ====================',
         'POST | api/v1/client_set/',                        # 會員註冊帳號

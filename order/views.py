@@ -2,7 +2,6 @@ from django.shortcuts import render
 from .serializers import OrderSerializer, OrderItemSerializer
 from .models import Order, OrderItem
 from product.models import Product
-from django.db.models import Q
 
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
@@ -13,6 +12,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 
+# 統計訂單時使用
+from django.db.models.functions import TruncDay
+from django.db.models import Sum, F, ExpressionWrapper, IntegerField
+from django.utils import timezone
+from datetime import timedelta
+from collections import defaultdict
 
 # ======================  後台 API  ====================== #
 # 取得所有訂單
@@ -74,6 +79,104 @@ class DeleteOrderViewSet(viewsets.ViewSet):
         
         order.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# 根據每日做統計(所有訂單日期) - 取得日期、分類、商品、總數量、總金額
+class AllDailyOrderStats(APIView):
+    def get(self, request):
+        daily_stats = (
+            OrderItem.objects
+            .annotate(
+                order_date=TruncDay('order__created_at'),
+            )
+            .values('order_date', 'product__category', 'product__name')
+            .annotate(
+                total_quantity=Sum('quantity'),
+                total_amount=ExpressionWrapper(
+                    F('quantity') * F('price'),
+                    output_field=IntegerField()
+                )
+            )
+            .order_by('-order_date', 'product__category', 'product__name')
+        )
+
+        # 初始化字典格式
+        stats_dict = {}
+
+        # 組合資料格式
+        for stat in daily_stats:
+            order_date = stat['order_date'].strftime('%Y-%m-%dT%H:%M:%S%z')
+            product_category = stat['product__category']
+            product_name = stat['product__name']
+
+            if order_date not in stats_dict:
+                stats_dict[order_date] = []
+
+            found = False
+            # 檢查所有商品名稱是否有相同的，有相同只要增加數量和金額
+            for item in stats_dict[order_date]:
+                if item['product_category'] == product_category and item['product__name'] == product_name:
+                    item['total_quantity'] += stat['total_quantity']
+                    item['total_amount'] += stat['total_amount']
+                    found = True
+                    break
+
+            if not found:
+                stats_dict[order_date].append({
+                    'product_category': product_category,
+                    'product__name': product_name,
+                    'total_quantity': stat['total_quantity'],
+                    'total_amount': stat['total_amount']
+                })
+
+        # 轉換格式
+        formatted_data = [{'order_date': key, 'items': value} for key, value in stats_dict.items()]
+
+        return Response({"order_stats" : formatted_data})
+
+
+# 根據當日做統計 - 取得日期、分類、商品、總數量、總金額
+class DailyOrderStats(APIView):
+    def get(self, request):
+        # 取得目前日期
+        current_time = timezone.now()
+        today = current_time + timedelta(hours=8)
+
+        daily_stats = (
+            OrderItem.objects
+            .filter(order__created_at__date=today)
+            .values('product__category', 'product__name')
+            .annotate(
+                total_quantity=Sum('quantity'),
+                total_amount=Sum(ExpressionWrapper(
+                    F('quantity') * F('price'),
+                    output_field=IntegerField()
+                    ))
+            )
+            .order_by('product__category', 'product__name')
+        )
+
+        # 初始化字典格式
+        stats_dict = {'order_date': today, 'items': []}
+
+        # 合併具有相同商品名稱的數據
+        product_data = defaultdict(lambda: {'total_quantity': 0, 'total_amount': 0})
+        for stat in daily_stats:
+            product_name = stat['product__name']
+            product_data[product_name]['total_quantity'] += stat['total_quantity']
+            product_data[product_name]['total_amount'] += stat['total_amount']
+
+        # 轉換成所需的格式
+        for product_name, data in product_data.items():
+            stats_dict['items'].append({
+                'product__name': product_name,
+                'total_quantity': data['total_quantity'],
+                'total_amount': data['total_amount']
+            })
+
+        formatted_data = [stats_dict]
+
+        return Response(formatted_data)
 
 
 # ======================  前台 API  ====================== #
@@ -139,3 +242,36 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Order.DoesNotExist:
             raise APIException("客戶尚未購買商品", code=status.HTTP_404_NOT_FOUND)
+
+
+# [
+#     {
+#         "order_date": "2023-11-01T01:10:00.194353Z",   
+#         "items": [
+#             {
+#                 "product_category": "包子",
+#                 "product__name": "小兔豆沙包(素)",
+#                 "total_quantity": 2,
+#                 "total_amount": 360
+#             },
+#             {
+#                 "product_category": "粽子",
+#                 "product__name": "原味鹼粽",
+#                 "total_quantity": 1,
+#                 "total_amount": 360
+#             },
+#             {
+#                 "product_category": "酥餅",
+#                 "product__name": "柚子奶黃酥餅",
+#                 "total_quantity": 2,
+#                 "total_amount": 140
+#             },
+#             {
+#                 "product_category": "鬆糕",
+#                 "product__name": "桂花鬆糕",
+#                 "total_quantity": 1,
+#                 "total_amount": 400
+#             }
+#         ]
+#     }
+# ]
