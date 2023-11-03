@@ -1,17 +1,24 @@
 from django.shortcuts import render
+from .models import Staff, ClockInRecord, ClockOutRecord
+from .serializers import StaffSerializer, ClockInSerializer, ClockOutSerializer, MonthlyClockInOutSerializer
+from datetime import datetime, timedelta
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import Staff, ClockInRecord, ClockOutRecord
-from .serializers import StaffSerializer, ClockInSerializer, ClockOutSerializer
-from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.decorators import action
-from datetime import datetime, timedelta
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.core.files.uploadedfile import InMemoryUploadedFile 
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
-# Simple JWT 
+# 統計每個月員工的上下班打卡記錄
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
+from rest_framework import generics
+from django.utils import timezone
+
+
+# Simple JWT
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -29,13 +36,16 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return token
 
+
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
 
+# ======================  員工管理 API   ====================== #
 # 取得全部員工資料
 class StaffList(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(backend=False).filter(is_delete=False).filter(is_office_staff=True)
+    queryset = Staff.objects.filter(backend=False).filter(
+        is_delete=False).filter(is_office_staff=True)
     serializer_class = StaffSerializer
 
     # 查詢
@@ -44,7 +54,8 @@ class StaffList(viewsets.ModelViewSet):
         query_params = self.request.query_params
 
         search = query_params.get('search')
-        queryset = Staff.objects.filter(backend=False).filter(is_delete=False).filter(is_office_staff=True)
+        queryset = Staff.objects.filter(backend=False).filter(
+            is_delete=False).filter(is_office_staff=True)
 
         email = queryset.filter(email__icontains=search)
         username = queryset.filter(username__icontains=search)
@@ -66,8 +77,8 @@ class StaffViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.filter(backend=False).filter(is_office_staff=True)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
-    # permission_classes = [IsAuthenticated]     # 權限配置 - 必須登入才可以訪問
-    
+    # permission_classes = [IsAuthenticated]     # 權限配置 - 必須帶有token才可以訪問
+
     def create(self, request):
         username = request.data['username']
         password1 = request.data['password1']
@@ -82,7 +93,7 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         # 建立帳號
         user = get_user_model().objects.create_user(
-                username=username, password=password1, name=name, email=email, is_office_staff=True)
+            username=username, password=password1, name=name, email=email, is_office_staff=True)
 
         return Response({"message": "註冊成功"}, status=status.HTTP_201_CREATED)
 
@@ -91,20 +102,20 @@ class StaffViewSet(viewsets.ModelViewSet):
             staff = Staff.objects.get(pk=pk)
         except Staff.DoesNotExist:
             return Response({"message": "無法更新"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         staff.username = request.data['username']
         password = request.data['password1']
         if password:
             staff.set_password(password)
 
-        name =  request.data['name']
+        name = request.data['name']
         if name != "":
             staff.name = name
         else:
-            staff.name =  None
+            staff.name = None
 
         staff.email = request.data['email']
-        
+
         staff.save()
         return Response({"message": "帳號已更新"}, status=status.HTTP_200_OK)
 
@@ -116,49 +127,50 @@ class DeleteStaff(APIView):
             return Staff.objects.get(id=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此員工"}, status=status.HTTP_404_NOT_FOUND)
-        
-    def patch(self, request, pk, format=None):
-            staff = self.get_staff(pk)
-            staff.is_delete = True
-            staff.is_office_staff = False
 
-            staff.save()
-            return Response({"message" : "已加入待刪除名單"}, status=status.HTTP_200_OK)
+    def patch(self, request, pk, format=None):
+        staff = self.get_staff(pk)
+        staff.is_delete = True
+        staff.is_office_staff = False
+
+        staff.save()
+        return Response({"message": "已加入待刪除名單"}, status=status.HTTP_200_OK)
 
 
 # 處理加入待刪除的員工
 class StaffWaitSetViewSet(viewsets.ModelViewSet):
     # 取得全部待刪除員工
-    queryset = Staff.objects.filter(backend=False).filter(is_office_staff=False).filter(is_delete=True)
+    queryset = Staff.objects.filter(backend=False).filter(
+        is_office_staff=False).filter(is_delete=True)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
-    
+
     def update(self, request, pk=None):
         try:
             staff = Staff.objects.get(pk=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此員工"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         staff.is_delete = False
         staff.is_office_staff = True
-        
+
         staff.save()
         return Response({"message": "已將員工取回"}, status=status.HTTP_200_OK)
-    
+
     def destroy(self, request, pk=None):
         try:
             staff = Staff.objects.get(pk=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此員工"}, status=status.HTTP_404_NOT_FOUND)
-        
-        if staff.image:  
-            staff.image.delete() 
+
+        if staff.image:
+            staff.image.delete()
 
         staff.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# 員工上班打卡(只會紀錄一次)
+# 員工上班打卡(一天只可紀錄一次)
 class ClockInViewSet(viewsets.ModelViewSet):
     queryset = ClockInRecord.objects.all().order_by('-clock_in_time')
     serializer_class = ClockInSerializer
@@ -169,7 +181,8 @@ class ClockInViewSet(viewsets.ModelViewSet):
 
         # 檢查是否有打卡記錄
         today = datetime.now().date()
-        existing_clock_in = ClockInRecord.objects.filter(staff=staff, clock_in_time__date=today).first()
+        existing_clock_in = ClockInRecord.objects.filter(
+            staff=staff, clock_in_time__date=today).first()
 
         if existing_clock_in:
             return Response({"message": "已打過上班卡"})
@@ -181,7 +194,7 @@ class ClockInViewSet(viewsets.ModelViewSet):
         return Response({"message": "上班打卡成功"}, status=status.HTTP_201_CREATED)
 
 
-# 員工下班打卡(可紀錄最新的打卡)
+# 員工下班打卡(重複更新紀錄)
 class ClockOutViewSet(viewsets.ModelViewSet):
     queryset = ClockOutRecord.objects.all().order_by('-clock_out_time')
     serializer_class = ClockOutSerializer
@@ -195,14 +208,8 @@ class ClockOutViewSet(viewsets.ModelViewSet):
             return Response({"message": "新卡，請先打上班卡"})
 
         # 取得最後一次下班卡紀錄
-        last_clockOutRecord = ClockOutRecord.objects.filter(staff=staff).first()
-
-        # 轉換成字串
-        # new_time = last_clockOutRecord.clock_out_time + timedelta(hours=8)
-        # last_clockOutRecord_strTime = new_time.strftime('%Y-%m-%d')
-        # 與目前時間比較做比較用 (轉回時間格式取日期)
-        # last_clockOutRecord_datetime = datetime.strptime(last_clockOutRecord_strTime , '%Y-%m-%d')
-
+        last_clockOutRecord = ClockOutRecord.objects.filter(
+            staff=staff).first()
 
         # 目前時間(字串格式)
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -212,15 +219,19 @@ class ClockOutViewSet(viewsets.ModelViewSet):
         # 與最後一次打卡時間做比較用 (將字串格式目前時間，轉回時間格式)
         current_strTime = datetime.now().strftime('%Y-%m-%d')
         current_date_time = datetime.strptime(current_strTime, '%Y-%m-%d')
-        
+
         if last_clockOutRecord:
+            # 轉換成字串
             new_time = last_clockOutRecord.clock_out_time + timedelta(hours=8)
             last_clockOutRecord_strTime = new_time.strftime('%Y-%m-%d')
-            last_clockOutRecord_datetime = datetime.strptime(last_clockOutRecord_strTime , '%Y-%m-%d')
+            # 轉回時間格式取年月日判斷
+            last_clockOutRecord_datetime = datetime.strptime(
+                last_clockOutRecord_strTime, '%Y-%m-%d')
 
             if current_date_time != last_clockOutRecord_datetime:
                 # 建立新下班打卡紀錄
-                new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
+                new_clockOutRecord = ClockOutRecord(
+                    staff=staff, clock_out_time=current_datetime)
                 new_clockOutRecord.save()
                 return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
             else:
@@ -230,15 +241,110 @@ class ClockOutViewSet(viewsets.ModelViewSet):
                 return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
         else:
             # 如果是新的下班卡就沒有前一次最後一次紀錄
-            new_clockOutRecord = ClockOutRecord(staff=staff, clock_out_time=current_datetime)
+            new_clockOutRecord = ClockOutRecord(
+                staff=staff, clock_out_time=current_datetime)
             new_clockOutRecord.save()
             return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
 
 
-# 處理會員管理
+# 統計每個月員工的上下班打卡記錄 (格式處理不方便)
+# class ClockInAndOutRecords(generics.ListAPIView):
+#     queryset = []
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
+
+#     def list(self, request):
+#         staff = Staff.objects.filter(
+#             backend=False, is_delete=False, is_office_staff=True)
+#         monthly_records = []
+
+#         for employee in staff:
+#             employee_records = {
+#                 'staff': employee.username,
+#                 'staff_id': employee.id,
+#                 'monthly_records': {}
+#             }
+
+#             for month in range(1, 13):
+#                 records = {
+#                     'clock_in_records': ClockInRecord.objects.filter(
+#                         staff=employee, clock_in_time__month=month).values('id', 'clock_in_time'),
+#                     'clock_out_records': ClockOutRecord.objects.filter(
+#                         staff=employee, clock_out_time__month=month).values('id', 'clock_out_time'),
+#                 }
+#                 employee_records['monthly_records'][month] = records
+
+#             # 調整時間格時為+8時區。例 "2023-10-31T23:54:20+08:00"
+#             for month_data in employee_records['monthly_records'].values():
+#                 for record_type in month_data.values():
+#                     for entry in record_type:
+#                         if 'clock_in_time' in entry:
+#                             entry['clock_in_time'] = entry['clock_in_time'].astimezone(
+#                                 timezone.get_current_timezone())
+#                         if 'clock_out_time' in entry:
+#                             entry['clock_out_time'] = entry['clock_out_time'].astimezone(
+#                                 timezone.get_current_timezone())
+
+#             monthly_records.append(employee_records)
+
+#         return Response(monthly_records, status=status.HTTP_200_OK)
+
+
+# 更改格式合併每月每日的員工上下班打卡紀錄
+class ClockInAndOutRecords(generics.ListAPIView):
+    queryset = []
+
+    def list(self, request):
+        staff = Staff.objects.filter(
+            backend=False, is_delete=False, is_office_staff=True)
+        monthly_records = []
+
+        for employee in staff:
+            employee_records = {
+                "staff": employee.username,
+                "staff_id": employee.id,
+                "staff_name": employee.name,
+                "monthly_records": {},
+            }
+
+            for month in range(1, 13):
+                records = {
+                    "clock_records": [],
+                }
+
+                clock_in_records = ClockInRecord.objects.filter(
+                    staff=employee, clock_in_time__month=month)
+                clock_out_records = ClockOutRecord.objects.filter(
+                    staff=employee, clock_out_time__month=month)
+
+                for day in range(1, 32):
+                    clock_in_data = clock_in_records.filter(
+                        clock_in_time__day=day)
+                    clock_out_data = clock_out_records.filter(
+                        clock_out_time__day=day)
+
+                    clock_in_time = clock_in_data[0].clock_in_time.astimezone(
+                        timezone.get_current_timezone()).isoformat() if clock_in_data else None
+                    clock_out_time = clock_out_data[0].clock_out_time.astimezone(
+                        timezone.get_current_timezone()).isoformat() if clock_out_data else None
+
+                    records["clock_records"].append({
+                        "clock_in_time": clock_in_time,
+                        "clock_out_time": clock_out_time,
+                    })
+
+                employee_records["monthly_records"][str(month)] = records
+
+            monthly_records.append(employee_records)
+
+        return Response(monthly_records, status=status.HTTP_200_OK)
+
+
+# ======================  會員管理 API  ====================== #
 class backendClientViewSet(viewsets.ModelViewSet):
     # 取得全部會員資料
-    queryset = Staff.objects.filter(backend=False).filter(is_delete_client=False)
+    queryset = Staff.objects.filter(
+        backend=False).filter(is_delete_client=False)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]                  # 權限配置 - 全線允許訪問
 
@@ -250,13 +356,13 @@ class DeleteClientToBlack(APIView):
             return Staff.objects.get(id=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
-        
-    def patch(self, request, pk, format=None):
-            client = self.get_client(pk)
-            client.is_delete_client = True
 
-            client.save()
-            return Response({"message" : "已加入黑名單"}, status=status.HTTP_200_OK)
+    def patch(self, request, pk, format=None):
+        client = self.get_client(pk)
+        client.is_delete_client = True
+
+        client.save()
+        return Response({"message": "已加入黑名單"}, status=status.HTTP_200_OK)
 
 
 # 取得查詢的會員
@@ -273,7 +379,7 @@ class SearchClientViewSet(viewsets.ModelViewSet):
 
         queryset = Staff.objects.filter(backend=False)
 
-        username =  queryset.filter(username__icontains=search)
+        username = queryset.filter(username__icontains=search)
         name = queryset.filter(name__icontains=search)
         email = queryset.filter(email__icontains=search)
 
@@ -283,7 +389,7 @@ class SearchClientViewSet(viewsets.ModelViewSet):
             queryset = name
         elif email:
             queryset = email
-        
+
         serializer = StaffSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -291,7 +397,8 @@ class SearchClientViewSet(viewsets.ModelViewSet):
 # 處理加入黑名單的會員
 class ClientBlackViewSet(viewsets.ModelViewSet):
     # 取得全部會員 is_delete_client= True 資料
-    queryset = Staff.objects.filter(backend=False).filter(is_delete_client=True)
+    queryset = Staff.objects.filter(
+        backend=False).filter(is_delete_client=True)
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]                  # 權限配置 - 全線允許訪問
 
@@ -300,20 +407,20 @@ class ClientBlackViewSet(viewsets.ModelViewSet):
             client = Staff.objects.get(pk=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         client.is_delete_client = False
-        
+
         client.save()
         return Response({"message": "已將會員取回"}, status=status.HTTP_200_OK)
-    
+
     def destroy(self, request, pk=None):
         try:
             client = Staff.objects.get(pk=pk)
         except Staff.DoesNotExist:
             return Response({"message": "查無此會員"}, status=status.HTTP_404_NOT_FOUND)
-        
-        if client.image:  
-            client.image.delete() 
+
+        if client.image:
+            client.image.delete()
 
         client.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -325,7 +432,6 @@ class ClientViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.all()
     serializer_class = StaffSerializer
     permission_classes = [AllowAny]              # 權限配置 - 全線允許訪問
-    
 
     def create(self, request):
         username = request.data['username']
@@ -341,7 +447,7 @@ class ClientViewSet(viewsets.ModelViewSet):
 
         # 建立帳號
         user = get_user_model().objects.create_user(
-                username=username, password=password1, name=name, email=email)
+            username=username, password=password1, name=name, email=email)
 
         return Response({"message": "註冊成功"}, status=status.HTTP_201_CREATED)
 
@@ -352,7 +458,7 @@ class ClientViewSet(viewsets.ModelViewSet):
             client = Staff.objects.get(id=pk)
         except Staff.DoesNotExist:
             return Response({"message": "無此會員"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # 序列化
         serializer = StaffSerializer(client)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -374,22 +480,21 @@ class ClientUpdateViewSet(viewsets.ModelViewSet):
         if password:
             client.set_password(password)
 
-        name =  request.data['updatName']
+        name = request.data['updatName']
         if name != "":
             client.name = name
         else:
-            client.name =  client.name
+            client.name = client.name
 
         if 'image' in request.data:
             new_image = request.data['image']
             if isinstance(new_image, InMemoryUploadedFile):
                 if new_image.size > 0:
                     if client.image:
-                        client.image.delete() 
+                        client.image.delete()
                     client.image = new_image
             else:
                 client.image = client.image
 
         client.save()
         return Response({"message": "更新成功"}, status=status.HTTP_200_OK)
-

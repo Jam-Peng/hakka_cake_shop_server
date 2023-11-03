@@ -1,7 +1,6 @@
 from django.shortcuts import render
-from django.db.models import Q
-from .serializers import ProductSerializer
 from .models import Product
+from .serializers import ProductSerializer
 
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
@@ -17,20 +16,23 @@ from django.core.files.uploadedfile import InMemoryUploadedFile   # 檢查是否
 @api_view(['GET'])
 def getRoutes(request):
     routes = [
-        '===================  Token驗證  ===================',
         {
             'GET | api/v1/',
+        },
+        '===================  使用者登入_Token驗證  ===================',
+        {
             'POST | api/v1/token/',
             'POST | api/v1/token/refresh/',
         },
         '====================  後台使用  ====================',
         {
-            'GET | api/v1/staffs/',                         # 取得全部員工
             'POST | api/v1/staff_set/',                     # 員工註冊
             'PUT | api/v1/staff_set/:id/',                  # 更新帳號
             'POST | api/v1/clock-in/:id/',                  # 上班打卡
             'PUT | api/v1/clock-out/:id/',                  # 下班打卡
+            'GET | api/v1/staffs/',                         # 取得全部員工
             'GET | api/v1/staffs/search/?search=query',     # 搜尋員工
+            'GET | api/v1/staff_clock_in_out_records/',     # 取得當年度員工每個月的上下班紀錄
 
             'PATCH | api/v1/staff_delete/:id/',             # 將員工 is_delete設為 True
             'GET | api/v1/staff_wait_set/',                 # 取得加入待刪除的所有員工
@@ -67,10 +69,10 @@ def getRoutes(request):
 
         '===================  前台使用  ====================',
         'POST | api/v1/client_set/',                        # 會員註冊帳號
+        'PUT | api/v1/client_update/:id/',                  # 更新會員資料
         'GET | api/v1/front_products/',                     # 取得所有商品
         'POST | api/v1/front_order/',                       # 建立商品訂單
         'GET | api/v1/user_orders/:id/',                    # 取得一個客戶所有訂單
-        'PUT | api/v1/client_update/:id/',                  # 更新會員資料
     ]
     return Response(routes)
 

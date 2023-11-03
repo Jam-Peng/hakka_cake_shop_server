@@ -1,10 +1,9 @@
 from django.shortcuts import render
-from .serializers import OrderSerializer, OrderItemSerializer
+from .serializers import OrderSerializer
 from .models import Order, OrderItem
 from product.models import Product
 
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
