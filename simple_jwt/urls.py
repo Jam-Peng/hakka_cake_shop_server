@@ -27,6 +27,8 @@ urlpatterns = [
          name='clock_out'),                                                              # 下班打卡
     path('staff_clock_in_out_records/', views.ClockInAndOutRecords.as_view(),
          name='clock-in-out-records'),                                                   # 當年每月上下班打卡統計
+    path('staff_one_month_clock_records/<int:pk>/', views.OneStaffMonthClockRecords.as_view(),
+         name='staff_one_month_clock_records'),                                          # 取得一個員工特定月份打卡紀錄
 
     path('staffs/search/', views.StaffList.as_view({'get': 'search'}),
          name='staff_search'),                                                           # 查詢員工

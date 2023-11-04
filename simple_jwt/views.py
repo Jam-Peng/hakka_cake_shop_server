@@ -12,10 +12,10 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 # 統計每個月員工的上下班打卡記錄
-from django.db.models.functions import TruncMonth
-from django.db.models import Count
 from rest_framework import generics
 from django.utils import timezone
+from calendar import monthrange
+from rest_framework.generics import CreateAPIView
 
 
 # Simple JWT
@@ -247,49 +247,6 @@ class ClockOutViewSet(viewsets.ModelViewSet):
             return Response({"message": "下班打卡成功"}, status=status.HTTP_200_OK)
 
 
-# 統計每個月員工的上下班打卡記錄 (格式處理不方便)
-# class ClockInAndOutRecords(generics.ListAPIView):
-#     queryset = []
-#     # permission_classes = [IsAuthenticated]
-#     permission_classes = [AllowAny]
-
-#     def list(self, request):
-#         staff = Staff.objects.filter(
-#             backend=False, is_delete=False, is_office_staff=True)
-#         monthly_records = []
-
-#         for employee in staff:
-#             employee_records = {
-#                 'staff': employee.username,
-#                 'staff_id': employee.id,
-#                 'monthly_records': {}
-#             }
-
-#             for month in range(1, 13):
-#                 records = {
-#                     'clock_in_records': ClockInRecord.objects.filter(
-#                         staff=employee, clock_in_time__month=month).values('id', 'clock_in_time'),
-#                     'clock_out_records': ClockOutRecord.objects.filter(
-#                         staff=employee, clock_out_time__month=month).values('id', 'clock_out_time'),
-#                 }
-#                 employee_records['monthly_records'][month] = records
-
-#             # 調整時間格時為+8時區。例 "2023-10-31T23:54:20+08:00"
-#             for month_data in employee_records['monthly_records'].values():
-#                 for record_type in month_data.values():
-#                     for entry in record_type:
-#                         if 'clock_in_time' in entry:
-#                             entry['clock_in_time'] = entry['clock_in_time'].astimezone(
-#                                 timezone.get_current_timezone())
-#                         if 'clock_out_time' in entry:
-#                             entry['clock_out_time'] = entry['clock_out_time'].astimezone(
-#                                 timezone.get_current_timezone())
-
-#             monthly_records.append(employee_records)
-
-#         return Response(monthly_records, status=status.HTTP_200_OK)
-
-
 # 更改格式合併每月每日的員工上下班打卡紀錄
 class ClockInAndOutRecords(generics.ListAPIView):
     queryset = []
@@ -304,7 +261,7 @@ class ClockInAndOutRecords(generics.ListAPIView):
                 "staff": employee.username,
                 "staff_id": employee.id,
                 "staff_name": employee.name,
-                "monthly_records": {},
+                "monthly_records": [],
             }
 
             for month in range(1, 13):
@@ -312,12 +269,15 @@ class ClockInAndOutRecords(generics.ListAPIView):
                     "clock_records": [],
                 }
 
-                clock_in_records = ClockInRecord.objects.filter(
-                    staff=employee, clock_in_time__month=month)
-                clock_out_records = ClockOutRecord.objects.filter(
-                    staff=employee, clock_out_time__month=month)
+                year = datetime.now().year             # 取得當前的年份
+                num_days = monthrange(year, month)[1]  # 取得每個月的天數
 
-                for day in range(1, 32):
+                clock_in_records = ClockInRecord.objects.filter(
+                    staff=employee, clock_in_time__year=year, clock_in_time__month=month)
+                clock_out_records = ClockOutRecord.objects.filter(
+                    staff=employee, clock_out_time__year=year, clock_out_time__month=month)
+
+                for day in range(1, num_days + 1):
                     clock_in_data = clock_in_records.filter(
                         clock_in_time__day=day)
                     clock_out_data = clock_out_records.filter(
@@ -333,11 +293,61 @@ class ClockInAndOutRecords(generics.ListAPIView):
                         "clock_out_time": clock_out_time,
                     })
 
-                employee_records["monthly_records"][str(month)] = records
+                employee_records["monthly_records"].append(records)
 
             monthly_records.append(employee_records)
 
         return Response(monthly_records, status=status.HTTP_200_OK)
+
+
+# 取得一個員工特定月份的上下班打卡紀錄
+class OneStaffMonthClockRecords(CreateAPIView):
+    serializer_class = MonthlyClockInOutSerializer
+
+    def create(self, request, pk):
+        month = request.data.get('data')
+
+        if month is None:
+            return Response({'message': '請選擇要查詢的月份'}, status=400)
+
+        staff = Staff.objects.filter(
+            backend=False, is_delete=False, is_office_staff=True, id=pk).first()
+
+        if not staff:
+            return Response({'message': '查無此員工'}, status=404)
+
+        employee_records = {
+            "staff": staff.username,
+            "staff_id": staff.id,
+            "staff_name": staff.name,
+            "monthly_records": [],
+        }
+
+        year = timezone.now().year                  # 取得當前的年份
+        num_days = monthrange(year, month)[1]       # 取得指定月份的天數
+
+        clock_in_records = ClockInRecord.objects.filter(
+            staff=staff, clock_in_time__year=year, clock_in_time__month=month)
+        clock_out_records = ClockOutRecord.objects.filter(
+            staff=staff, clock_out_time__year=year, clock_out_time__month=month)
+
+        for day in range(1, num_days + 1):
+            clock_in_data = clock_in_records.filter(clock_in_time__day=day)
+            clock_out_data = clock_out_records.filter(clock_out_time__day=day)
+
+            clock_in_time = clock_in_data[0].clock_in_time.astimezone(
+                timezone.get_current_timezone()).isoformat() if clock_in_data else None
+            clock_out_time = clock_out_data[0].clock_out_time.astimezone(
+                timezone.get_current_timezone()).isoformat() if clock_out_data else None
+
+            records = {
+                "clock_in_time": clock_in_time,
+                "clock_out_time": clock_out_time,
+            }
+
+            employee_records["monthly_records"].append(records)
+
+        return Response(employee_records, status=status.HTTP_200_OK)
 
 
 # ======================  會員管理 API  ====================== #
