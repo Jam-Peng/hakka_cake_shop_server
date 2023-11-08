@@ -36,7 +36,7 @@ Backend --> https://github.com/Jam-Peng/hakka_cake_shop_backend
 #
 
 ## 設計動機
-- 幫舅舅的客家手作糕點設計一個網路商店與後台管理系統。。
+- 幫舅舅的客家手作糕點設計一個網路商店與後台管理系統。
 - 使用 Django 撰寫 API 將前、後端做資料的整合與應用。
 - <a href="https://drive.google.com/file/d/1MIN3X9e8rf6s-wNaw6T52tyrQcTn7GsT/view?usp=sharing" target="_blank">開啟線上完整專案介紹</a>
 
